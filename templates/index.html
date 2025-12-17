@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShopDrawings.ai - Building Systems Intelligence</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --navy: #1e2a3a;
+            --navy-light: #2d3e52;
+            --orange: #FF6B47;
+            --orange-dark: #ff5533;
+            --gray-bg: #f5f7fa;
+            --gray-text: #718096;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: var(--gray-bg);
+            color: #2d3748;
+        }
+
+        /* Header */
+        .header {
+            background: var(--navy);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--white);
+        }
+
+        .logo-highlight {
+            color: var(--orange);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--white);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--orange);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        /* Upload Section */
+        .upload-section {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .upload-section h2 {
+            color: var(--navy);
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+
+        .upload-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .upload-card {
+            background: var(--gray-bg);
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1.25rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-card:hover {
+            border-color: var(--orange);
+            transform: translateY(-2px);
+        }
+
+        .upload-card h3 {
+            color: var(--navy);
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-card p {
+            color: var(--gray-text);
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .upload-button {
+            background: var(--orange);
+            color: var(--white);
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .upload-button:hover {
+            background: var(--orange-dark);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-list {
+            margin-top: 0.75rem;
+        }
+
+        .file-item {
+            background: var(--white);
+            padding: 0.5rem 0.75rem;
+            margin: 0.5rem 0;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .remove-file {
+            color: #e53e3e;
+            cursor: pointer;
+            font-weight: bold;
+            padding: 0.25rem 0.5rem;
+        }
+
+        .parse-button {
+            background: var(--orange);
+            color: var(--white);
+            border: none;
+            padding: 1rem 3rem;
+            border-radius: 8px;
+            font-size: 1.125rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: block;
+            margin: 2rem auto;
+            box-shadow: 0 4px 12px rgba(255, 107, 71, 0.3);
+        }
+
+        .parse-button:hover {
+            background: var(--orange-dark);
+            transform: scale(1.05);
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid var(--orange);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Results */
+        .results {
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .toolbar-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .toolbar h2 {
+            color: var(--navy);
+            font-size: 1.75rem;
+            margin: 0;
+        }
+
+        .toolbar-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-btn {
+            background: var(--navy);
+            color: var(--white);
+            border: none;
+            padding: 0.625rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .toolbar-btn:hover {
+            background: var(--navy-light);
+            transform: translateY(-2px);
+        }
+
+        .toolbar-btn.active {
+            background: var(--orange);
+        }
+
+        .toolbar-btn.danger {
+            background: #fc8181;
+        }
+
+        /* Search */
+        .search-bar {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .search-bar:focus {
+            outline: none;
+            border-color: var(--orange);
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+            color: var(--white);
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .stat-card.orange {
+            background: linear-gradient(135deg, var(--orange) 0%, var(--orange-dark) 100%);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        /* View Toggle */
+        .view-toggle {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .view-btn {
+            background: var(--white);
+            border: 2px solid #e2e8f0;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .view-btn.active {
+            background: var(--orange);
+            color: var(--white);
+            border-color: var(--orange);
+        }
+
+        /* Card View */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .drawing-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-left: 4px solid var(--orange);
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .drawing-card:hover {
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            transform: translateY(-4px);
+        }
+
+        .drawing-card.selected {
+            border-left-color: #48bb78;
+            background: #f0fff4;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            color: var(--navy);
+            font-weight: 600;
+            font-size: 0.875rem;
+            line-height: 1.4;
+        }
+
+        .card-menu {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .card-menu-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1.25rem;
+            color: var(--gray-text);
+            transition: color 0.3s;
+        }
+
+        .card-menu-btn:hover {
+            color: var(--orange);
+        }
+
+        .workflow-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .workflow-detected {
+            background: #feebc8;
+            color: #744210;
+        }
+
+        .workflow-reviewing {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+
+        .workflow-verified {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .workflow-approved {
+            background: #9ae6b4;
+            color: #22543d;
+        }
+
+        .card-data {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .data-row:last-child {
+            border-bottom: none;
+        }
+
+        .data-label {
+            color: var(--gray-text);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .data-value {
+            font-weight: 600;
+            color: var(--navy);
+        }
+
+        .data-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .badge-high {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .badge-medium {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+
+        .badge-low {
+            background: #feebc8;
+            color: #744210;
+        }
+
+        .badge-none {
+            background: #f7fafc;
+            color: #a0aec0;
+        }
+
+        /* Workflow Actions */
+        .card-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .card-action-btn {
+            flex: 1;
+            padding: 0.5rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-verify {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+
+        .btn-verify:hover {
+            background: #4299e1;
+            color: white;
+        }
+
+        .btn-approve {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .btn-approve:hover {
+            background: #48bb78;
+            color: white;
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--navy);
+            color: var(--white);
+            padding: 3rem 2rem;
+            margin-top: 4rem;
+        }
+
+        .footer-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 3rem;
+        }
+
+        .footer h3 {
+            color: var(--orange);
+            margin-bottom: 1rem;
+        }
+
+        .footer a {
+            color: #cbd5e0;
+            text-decoration: none;
+            line-height: 1.8;
+        }
+
+        .footer a:hover {
+            color: var(--orange);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            padding: 2rem;
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--white);
+            border-radius: 12px;
+            max-width: 1200px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-close {
+            background: #fc8181;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1rem;
+            }
+
+            .nav-links {
+                gap: 1rem;
+            }
+
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .toolbar-top {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .toolbar-actions {
+                justify-content: stretch;
+            }
+
+            .toolbar-btn {
+                flex: 1;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            Building<span class="logo-highlight">Systems</span>AI
+        </div>
+        <nav>
+            <ul class="nav-links">
+                <li><a href="#products">Products</a></li>
+                <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <h2>📤 Upload Your Documents</h2>
+            
+            <form id="uploadForm">
+                <div class="upload-grid">
+                    <!-- Scope -->
+                    <div class="upload-card" onclick="document.getElementById('scope').click()">
+                        <h3>📋 Scope of Work</h3>
+                        <p>Extract materials and requirements</p>
+                        <button type="button" class="upload-button">Choose Files</button>
+                        <input type="file" id="scope" name="scope" class="file-input" accept=".pdf" multiple>
+                        <div class="file-list" id="scope-list"></div>
+                    </div>
+
+                    <!-- Specification -->
+                    <div class="upload-card" onclick="document.getElementById('spec').click()">
+                        <h3>📄 Specification</h3>
+                        <p>Identify manufacturers and products</p>
+                        <button type="button" class="upload-button">Choose Files</button>
+                        <input type="file" id="spec" name="spec" class="file-input" accept=".pdf" multiple>
+                        <div class="file-list" id="spec-list"></div>
+                    </div>
+
+                    <!-- Drawing -->
+                    <div class="upload-card" onclick="document.getElementById('drawing').click()">
+                        <h3>🏗️ Drawing</h3>
+                        <p>Extract roof elements and details</p>
+                        <button type="button" class="upload-button">Choose Files</button>
+                        <input type="file" id="drawing" name="drawing" class="file-input" accept=".pdf" multiple>
+                        <div class="file-list" id="drawing-list"></div>
+                    </div>
+
+                    <!-- Assembly -->
+                    <div class="upload-card" onclick="document.getElementById('assembly').click()">
+                        <h3>✉️ Assembly Letter</h3>
+                        <p>Parse layer details and specs</p>
+                        <button type="button" class="upload-button">Choose Files</button>
+                        <input type="file" id="assembly" name="assembly" class="file-input" accept=".pdf" multiple>
+                        <div class="file-list" id="assembly-list"></div>
+                    </div>
+                </div>
+
+                <button type="submit" class="parse-button">Parse Documents</button>
+            </form>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Processing your documents...</p>
+        </div>
+
+        <!-- Results -->
+        <div class="results" id="results"></div>
+    </div>
+
+    <!-- Charts Modal -->
+    <div class="modal" id="chartsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📊 Data Visualization</h2>
+                <button class="modal-close" onclick="closeCharts()">✕ Close</button>
+            </div>
+            <div id="chartsContent"></div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div>
+                <h3>BuildingSystemsAI</h3>
+                <p>Intelligence for Building Systems</p>
+                <p>Starting with waterproofing. Expanding to all building systems.</p>
+            </div>
+            <div>
+                <h3>Products</h3>
+                <p><a href="#">ShopDrawings.ai</a></p>
+                <p><a href="#">CertifiedInstaller</a></p>
+                <p><a href="#">FieldAI</a></p>
+            </div>
+            <div>
+                <h3>Contact</h3>
+                <p>Email: contact@buildingsystemsai.com</p>
+                <p>Philadelphia, PA</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -5,6 +5,9 @@ A Flask-based web application for parsing and extracting structured data from ro
 ## Features
 
 - **Multi-Document Parsing**: Upload and parse multiple document types simultaneously
+- **Large Drawing Set Parser**: Process 1500+ page architectural drawing sets to find roofing details
+  - Two-stage filtering: Python filters ~95% of irrelevant pages
+  - AI Vision Analysis: Claude vision analyzes filtered pages for detailed extraction
 - **Assembly Letter Extraction**: Comprehensive parsing of roof assembly details including:
   - Multiple assembly detection (Main Roof, Receiving Room, Canopy, etc.)
   - Layer-by-layer breakdown (membranes, insulation, coverboards, vapor barriers)
@@ -21,13 +24,14 @@ A Flask-based web application for parsing and extracting structured data from ro
 ### Prerequisites
 - Python 3.7+
 - pip
+- poppler-utils (for pdf2image - required for AI vision analysis)
 
 ### Setup
 
-1. Extract the project files:
+1. Clone the repository:
    ```bash
-   unzip AssemblyDrawingTool-main.zip
-   cd AssemblyDrawingTool-main
+   git clone https://github.com/buildingsystemsai-drafty/AssemblyDrawingTool.git
+   cd AssemblyDrawingTool
    ```
 
 2. Create a virtual environment:
@@ -50,7 +54,14 @@ A Flask-based web application for parsing and extracting structured data from ro
    pip install -r requirements.txt
    ```
 
+5. (Optional) Set up AI Vision Analysis:
+   ```bash
+   export ANTHROPIC_API_KEY=your_api_key_here
+   ```
+
 ## Usage
+
+### Web Interface
 
 1. Start the Flask server:
    ```bash
@@ -64,62 +75,118 @@ A Flask-based web application for parsing and extracting structured data from ro
    - Remove files by clicking the X button
    - Click "Parse Documents" to extract data
 
-4. View results: Parsed data is displayed in an organized format with project information, contractor details, assembly breakdowns, layer specifications, and approval ratings.
+### Large Drawing Set Parser (API)
+
+For processing large architectural drawing sets (like JFK Terminal 1 with 1500+ pages):
+
+#### Filter Only (Stage 1 - Fast)
+```bash
+curl -X POST -F "drawing_set=@drawings.pdf" \
+  "http://localhost:5000/filter-drawing-set?min_relevance=0.3"
+```
+
+#### Full Analysis with AI Vision (Stage 1 + Stage 2)
+```bash
+curl -X POST -F "drawing_set=@drawings.pdf" \
+  "http://localhost:5000/parse-large-drawing-set?use_ai=true&min_relevance=0.3"
+```
+
+#### Command Line
+```bash
+python parsers/large_drawing_set_parser.py drawings.pdf
+
+# Test with first 100 pages
+python parsers/large_drawing_set_parser.py drawings.pdf 100
+```
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/parse` | POST | Parse scope, spec, drawing, assembly documents |
+| `/parse-large-drawing-set` | POST | Parse large drawing sets with optional AI analysis |
+| `/filter-drawing-set` | POST | Quick filter to identify roof-related sheets |
+
+### Query Parameters for Large Drawing Set Endpoints
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `use_ai` | bool | false | Enable AI vision analysis |
+| `max_pages` | int | all | Limit pages to analyze |
+| `min_relevance` | float | 0.3 | Minimum relevance score (0.0-1.0) |
 
 ## Project Structure
 
 ```
 AssemblyDrawingTool/
-├── app.py                          # Main Flask application
-├── requirements.txt                # Python dependencies
+├── app.py                              # Main Flask application
+├── requirements.txt                    # Python dependencies
+├── README.md                           # Project documentation
+├── CLAUDE.md                           # Claude Code guidance
 ├── parsers/
 │   ├── __init__.py
-│   ├── assembly_parser.py          # Assembly letter parser
-│   ├── scope_parser.py             # Scope of work parser
-│   ├── spec_parser.py              # Specification parser
-│   ├── arch_drawing_parser.py      # Drawing parser
-│   ├── pdf_extractor.py            # PDF text extraction
-│   └── text_cleaner.py             # Text cleaning utilities
+│   ├── assembly_parser.py              # Assembly letter parser
+│   ├── scope_parser.py                 # Scope of work parser
+│   ├── spec_parser.py                  # Specification parser
+│   ├── arch_drawing_parser.py          # Drawing parser (text-based)
+│   ├── large_drawing_set_parser.py     # Large drawing set parser with AI vision
+│   ├── pdf_extractor.py                # PDF text extraction
+│   └── text_cleaner.py                 # Text cleaning utilities
 ├── generators/
-│   └── dxf_generator.py            # DXF output generation
+│   └── dxf_generator.py                # DXF output generation
 ├── static/
 │   └── js/
-│       └── app.js                  # Frontend JavaScript
+│       └── app.js                      # Frontend JavaScript
 ├── templates/
-│   └── index.html                  # Main UI template
-└── uploads/                        # Temporary file storage
+│   └── index.html                      # Main UI template
+└── uploads/                            # Temporary file storage
 ```
+
+## Large Drawing Set Parser
+
+The `large_drawing_set_parser.py` is designed for massive architectural drawing sets (1500+ pages). It uses a two-stage approach:
+
+### Stage 1: Python Filtering
+- Analyzes sheet numbers (A5xx series = roof plans per AIA standards)
+- Extracts text and searches for roofing keywords
+- Scores each page for roof relevance
+- Typically filters out 90-95% of non-roof pages
+
+### Stage 2: AI Vision Analysis
+- Converts filtered pages to images
+- Sends to Claude Vision API for analysis
+- Extracts:
+  - Roof drains, scuppers, RTUs
+  - Penetrations, skylights, hatches
+  - Material specifications
+  - Detail references
+  - Square footage and scales
+
+### Supported Sheet Number Patterns
+- `A-5xx`, `A5xx`, `A5.xx` - Roof plans
+- `A-8xx`, `A-9xx` - Architectural details
+- `R-xx`, `RF-xx` - Roof-specific sheets
+
+### Roofing Keywords Detected
+- High relevance: roof plan, roof detail, membrane, TPO, EPDM, parapet, flashing
+- Medium relevance: scupper, RTU, curb, penetration, tapered insulation
+- Context: waterproof, drainage, slope, deck
 
 ## Technologies Used
 
 - **Backend**: Flask (Python)
-- **PDF Processing**: PyPDF2
+- **PDF Processing**: pdfplumber, PyPDF2, pdf2image
+- **AI Vision**: Anthropic Claude API
 - **Frontend**: Vanilla JavaScript, HTML5, CSS3
 - **Styling**: Custom CSS with gradient design
-- **Text Processing**: Regex pattern matching
 
-## Supported Document Types
+## Environment Variables
 
-### Assembly Letters
-- Extracts up to 5 assemblies per document
-- Parses 3 membrane layers, 3 insulation layers, 2 coverboards
-- Captures attachment methods and specifications
-- Identifies FM, UL, and ASTM approvals
-
-### Scope of Work
-- Materials and requirements
-- Project summaries
-- Budget items
-
-### Specifications
-- Manufacturer identification
-- Product listings
-- System specifications
-
-### Drawings
-- Element extraction
-- Callout identification
-- Drawing annotations
+| Variable | Description |
+|----------|-------------|
+| `ANTHROPIC_API_KEY` | API key for Claude vision analysis |
+| `PORT` | Server port (default: 5000) |
+| `FLASK_ENV` | Set to "production" to disable debug mode |
 
 ## Author
 
