@@ -232,12 +232,13 @@ class DrawingSetFilter:
             'processing_time_seconds': 0
         }
 
-    def analyze_pdf(self, max_pages: Optional[int] = None) -> List[SheetInfo]:
+    def analyze_pdf(self, max_pages: Optional[int] = None, start_page: int = 1) -> List[SheetInfo]:
         """
         Analyze PDF to identify roof-related sheets.
 
         Args:
             max_pages: Optional limit for testing with large files
+            start_page: Page to start from (default 1)
 
         Returns:
             List of SheetInfo for roof-related pages
@@ -259,20 +260,25 @@ class DrawingSetFilter:
             total_pages = 0
             self.stats['total_pages'] = 0
 
-        # Process pages individually to handle malformed pages
-        pages_to_analyze = min(max_pages, total_pages) if max_pages else total_pages
-        logger.info(f"Analyzing {pages_to_analyze} of {total_pages} pages...")
+        # Calculate end page based on start_page and max_pages
+        end_page = total_pages
+        if max_pages:
+            end_page = min(start_page + max_pages - 1, total_pages)
+
+        pages_to_analyze = end_page - start_page + 1
+        logger.info(f"Analyzing pages {start_page}-{end_page} ({pages_to_analyze} pages) of {total_pages} total...")
 
         # Use PyPDF2 for text extraction (handles malformed pages better)
         try:
             with open(self.pdf_path, 'rb') as f:
                 pdf_reader = PyPDF2.PdfReader(f)
 
-                for page_num in range(1, pages_to_analyze + 1):
+                for page_num in range(start_page, end_page + 1):
                     # Show progress every 10 pages
-                    if page_num % 10 == 0 or page_num == 1:
-                        pct = (page_num / pages_to_analyze) * 100
-                        print(f"  [{pct:5.1f}%] Processing page {page_num}/{pages_to_analyze}...", flush=True)
+                    progress = page_num - start_page + 1
+                    if progress % 10 == 0 or progress == 1:
+                        pct = (progress / pages_to_analyze) * 100
+                        print(f"  [{pct:5.1f}%] Processing page {page_num} ({progress}/{pages_to_analyze})...", flush=True)
 
                     try:
                         page = pdf_reader.pages[page_num - 1]
@@ -731,7 +737,8 @@ class LargeDrawingSetParser:
         self,
         max_pages: Optional[int] = None,
         analyze_with_ai: bool = True,
-        output_dir: Optional[str] = None
+        output_dir: Optional[str] = None,
+        start_page: int = 1
     ) -> Dict:
         """
         Parse the drawing set.
@@ -740,6 +747,7 @@ class LargeDrawingSetParser:
             max_pages: Optional page limit for testing
             analyze_with_ai: Whether to run AI analysis on filtered pages
             output_dir: Directory for exported images (temp dir if None)
+            start_page: Page to start from (default 1)
 
         Returns:
             Complete parsing results
@@ -748,7 +756,7 @@ class LargeDrawingSetParser:
 
         # Stage 1: Filter pages
         logger.info("STAGE 1: Filtering pages...")
-        filtered_sheets = self.filter.analyze_pdf(max_pages)
+        filtered_sheets = self.filter.analyze_pdf(max_pages, start_page=start_page)
 
         self.results = {
             'filename': Path(self.pdf_path).name,
@@ -855,7 +863,8 @@ def parse_large_drawing_set(
     api_key: Optional[str] = None,
     min_relevance: float = 0.3,
     use_ai: bool = True,
-    max_pages: Optional[int] = None
+    max_pages: Optional[int] = None,
+    start_page: int = 1
 ) -> Dict:
     """
     Convenience function for parsing a large drawing set.
@@ -866,6 +875,7 @@ def parse_large_drawing_set(
         min_relevance: Minimum relevance score for filtering
         use_ai: Whether to use AI vision
         max_pages: Optional page limit
+        start_page: Page to start from (default 1)
 
     Returns:
         Parsing results dictionary
@@ -876,29 +886,39 @@ def parse_large_drawing_set(
         min_relevance_score=min_relevance,
         use_ai_vision=use_ai
     )
-    return parser.parse(max_pages=max_pages)
+    return parser.parse(max_pages=max_pages, start_page=start_page)
 
 
 if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python large_drawing_set_parser.py <pdf_path> [max_pages] [--force-ai]")
+        print("Usage: python large_drawing_set_parser.py <pdf_path> [max_pages] [--force-ai] [--start N]")
         print("\nExample:")
         print("  python large_drawing_set_parser.py drawings.pdf")
         print("  python large_drawing_set_parser.py drawings.pdf 100  # Test with first 100 pages")
         print("  python large_drawing_set_parser.py drawings.pdf 50 --force-ai  # Force AI on all pages")
+        print("  python large_drawing_set_parser.py drawings.pdf 20 --start 640  # Start at page 640")
         sys.exit(1)
 
     pdf_path = sys.argv[1]
 
     # Parse arguments
     max_pages = None
+    start_page = 1
     force_ai = "--force-ai" in sys.argv
 
-    for arg in sys.argv[2:]:
-        if arg.isdigit():
-            max_pages = int(arg)
+    args = sys.argv[2:]
+    i = 0
+    while i < len(args):
+        if args[i] == "--start" and i + 1 < len(args):
+            start_page = int(args[i + 1])
+            i += 2
+        elif args[i].isdigit():
+            max_pages = int(args[i])
+            i += 1
+        else:
+            i += 1
 
     # Check for API key
     api_key = os.environ.get('ANTHROPIC_API_KEY')
@@ -915,6 +935,7 @@ if __name__ == "__main__":
         print("FORCE AI MODE: All pages will be sent to AI for analysis")
 
     print(f"\nParsing: {pdf_path}")
+    print(f"Start page: {start_page}")
     print(f"Max pages: {max_pages or 'all'}")
     print(f"AI analysis: {'enabled' if use_ai else 'disabled'}")
     print("-" * 60)
@@ -924,7 +945,8 @@ if __name__ == "__main__":
         api_key=api_key,
         min_relevance=min_relevance,
         use_ai=use_ai,
-        max_pages=max_pages
+        max_pages=max_pages,
+        start_page=start_page
     )
 
     # Print summary
