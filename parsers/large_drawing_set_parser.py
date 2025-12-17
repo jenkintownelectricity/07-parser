@@ -243,30 +243,59 @@ class DrawingSetFilter:
             List of SheetInfo for roof-related pages
         """
         import time
+        import PyPDF2
         start_time = time.time()
 
         logger.info(f"Opening PDF: {self.pdf_path}")
 
-        with pdfplumber.open(self.pdf_path) as pdf:
-            self.stats['total_pages'] = len(pdf.pages)
-            pages_to_process = pdf.pages[:max_pages] if max_pages else pdf.pages
+        # First, get total page count using PyPDF2 (more robust)
+        try:
+            with open(self.pdf_path, 'rb') as f:
+                pdf_reader = PyPDF2.PdfReader(f)
+                total_pages = len(pdf_reader.pages)
+                self.stats['total_pages'] = total_pages
+        except Exception as e:
+            logger.error(f"Error reading PDF with PyPDF2: {e}")
+            total_pages = 0
+            self.stats['total_pages'] = 0
 
-            logger.info(f"Analyzing {len(pages_to_process)} of {self.stats['total_pages']} pages...")
+        # Process pages individually to handle malformed pages
+        pages_to_analyze = min(max_pages, total_pages) if max_pages else total_pages
+        logger.info(f"Analyzing {pages_to_analyze} of {total_pages} pages...")
 
-            for i, page in enumerate(pages_to_process):
-                page_num = i + 1
+        # Use PyPDF2 for text extraction (handles malformed pages better)
+        try:
+            with open(self.pdf_path, 'rb') as f:
+                pdf_reader = PyPDF2.PdfReader(f)
 
-                if page_num % 100 == 0:
-                    logger.info(f"  Processing page {page_num}/{len(pages_to_process)}...")
+                for page_num in range(1, pages_to_analyze + 1):
+                    if page_num % 100 == 0:
+                        logger.info(f"  Processing page {page_num}/{pages_to_analyze}...")
 
-                sheet_info = self._analyze_page(page, page_num)
-                self.sheets.append(sheet_info)
+                    try:
+                        page = pdf_reader.pages[page_num - 1]
+                        text = page.extract_text() or ""
+                        sheet_info = self._analyze_page_text(text, page_num)
+                        self.sheets.append(sheet_info)
 
-                if sheet_info.is_roof_related:
-                    self.filtered_sheets.append(sheet_info)
+                        if sheet_info.is_roof_related:
+                            self.filtered_sheets.append(sheet_info)
+                    except Exception as e:
+                        logger.warning(f"  Skipping page {page_num} due to error: {e}")
+                        # Create minimal sheet info for skipped pages
+                        sheet_info = SheetInfo(
+                            page_number=page_num,
+                            sheet_number=f"PAGE-{page_num}",
+                            is_roof_related=False,
+                            roof_relevance_score=0.0
+                        )
+                        self.sheets.append(sheet_info)
 
-            self.stats['pages_analyzed'] = len(pages_to_process)
-            self.stats['roof_related_pages'] = len(self.filtered_sheets)
+        except Exception as e:
+            logger.error(f"Error processing PDF: {e}")
+
+        self.stats['pages_analyzed'] = len(self.sheets)
+        self.stats['roof_related_pages'] = len(self.filtered_sheets)
 
         self.stats['processing_time_seconds'] = round(time.time() - start_time, 2)
 
@@ -275,14 +304,12 @@ class DrawingSetFilter:
 
         return self.filtered_sheets
 
-    def _analyze_page(self, page, page_num: int) -> SheetInfo:
-        """Analyze a single page to determine roof relevance."""
-        # Extract text from page
-        text = page.extract_text() or ""
+    def _analyze_page_text(self, text: str, page_num: int) -> SheetInfo:
+        """Analyze page text to determine roof relevance."""
         text_lower = text.lower()
 
-        # Extract sheet number from title block (usually bottom right)
-        sheet_number = self._extract_sheet_number(text, page)
+        # Extract sheet number from title block
+        sheet_number = self._extract_sheet_number_from_text(text, page_num)
 
         # Extract sheet title
         sheet_title = self._extract_sheet_title(text)
@@ -309,8 +336,8 @@ class DrawingSetFilter:
             text_preview=text[:500] if text else ""
         )
 
-    def _extract_sheet_number(self, text: str, page) -> str:
-        """Extract sheet number from title block."""
+    def _extract_sheet_number_from_text(self, text: str, page_num: int) -> str:
+        """Extract sheet number from title block text."""
         # Common sheet number patterns
         patterns = [
             r'\b([A-Z]-?\d{3}(?:\.\d+)?)\b',  # A-501, A501, A5.01
@@ -327,7 +354,7 @@ class DrawingSetFilter:
                 counter = Counter(matches)
                 return counter.most_common(1)[0][0].upper()
 
-        return f"PAGE-{page.page_number}"
+        return f"PAGE-{page_num}"
 
     def _extract_sheet_title(self, text: str) -> str:
         """Extract sheet title from the page."""
