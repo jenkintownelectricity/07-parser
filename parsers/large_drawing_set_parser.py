@@ -269,8 +269,10 @@ class DrawingSetFilter:
                 pdf_reader = PyPDF2.PdfReader(f)
 
                 for page_num in range(1, pages_to_analyze + 1):
-                    if page_num % 100 == 0:
-                        logger.info(f"  Processing page {page_num}/{pages_to_analyze}...")
+                    # Show progress every 10 pages
+                    if page_num % 10 == 0 or page_num == 1:
+                        pct = (page_num / pages_to_analyze) * 100
+                        print(f"  [{pct:5.1f}%] Processing page {page_num}/{pages_to_analyze}...", flush=True)
 
                     try:
                         page = pdf_reader.pages[page_num - 1]
