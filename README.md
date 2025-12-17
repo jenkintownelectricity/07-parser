@@ -93,10 +93,43 @@ curl -X POST -F "drawing_set=@drawings.pdf" \
 
 #### Command Line
 ```bash
+# Basic usage
 python parsers/large_drawing_set_parser.py drawings.pdf
 
 # Test with first 100 pages
 python parsers/large_drawing_set_parser.py drawings.pdf 100
+
+# Start from specific page (e.g., page 641)
+python parsers/large_drawing_set_parser.py drawings.pdf 20 --start 641
+
+# Force AI analysis on all pages (bypasses filter)
+python parsers/large_drawing_set_parser.py drawings.pdf 10 --start 641 --force-ai
+```
+
+### Command Line Options
+
+| Option | Description |
+|--------|-------------|
+| `<pdf_path>` | Path to the PDF file (required) |
+| `<max_pages>` | Number of pages to analyze |
+| `--start N` | Start from page N |
+| `--force-ai` | Bypass filter and send all pages to AI |
+
+### Installing Poppler (Required for AI Vision)
+
+**Windows:**
+1. Download from https://github.com/oschwartz10612/poppler-windows/releases/
+2. Extract to `C:\poppler`
+3. Add to PATH: `$env:Path += ";C:\poppler\Library\bin"`
+
+**Mac:**
+```bash
+brew install poppler
+```
+
+**Linux:**
+```bash
+sudo apt-get install poppler-utils
 ```
 
 ### API Endpoints
