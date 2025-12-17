@@ -883,22 +883,36 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python large_drawing_set_parser.py <pdf_path> [max_pages]")
+        print("Usage: python large_drawing_set_parser.py <pdf_path> [max_pages] [--force-ai]")
         print("\nExample:")
         print("  python large_drawing_set_parser.py drawings.pdf")
         print("  python large_drawing_set_parser.py drawings.pdf 100  # Test with first 100 pages")
+        print("  python large_drawing_set_parser.py drawings.pdf 50 --force-ai  # Force AI on all pages")
         sys.exit(1)
 
     pdf_path = sys.argv[1]
-    max_pages = int(sys.argv[2]) if len(sys.argv) > 2 else None
+
+    # Parse arguments
+    max_pages = None
+    force_ai = "--force-ai" in sys.argv
+
+    for arg in sys.argv[2:]:
+        if arg.isdigit():
+            max_pages = int(arg)
 
     # Check for API key
     api_key = os.environ.get('ANTHROPIC_API_KEY')
     use_ai = api_key is not None
 
+    # If force_ai, set min_relevance to 0 to pass all pages
+    min_relevance = 0.0 if force_ai else 0.3
+
     if not use_ai:
         print("Note: ANTHROPIC_API_KEY not set - running filter-only mode")
         print("Set the environment variable to enable AI vision analysis")
+
+    if force_ai:
+        print("FORCE AI MODE: All pages will be sent to AI for analysis")
 
     print(f"\nParsing: {pdf_path}")
     print(f"Max pages: {max_pages or 'all'}")
@@ -908,6 +922,7 @@ if __name__ == "__main__":
     results = parse_large_drawing_set(
         pdf_path=pdf_path,
         api_key=api_key,
+        min_relevance=min_relevance,
         use_ai=use_ai,
         max_pages=max_pages
     )
